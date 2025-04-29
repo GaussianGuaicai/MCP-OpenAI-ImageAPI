@@ -28,15 +28,20 @@ async def _run_blocking(fn: Callable, *args, **kwargs):
 @mcp.tool()
 async def generate_image(
     prompt: str,
-    n: int,
-    size: str,
+    n: int = 1,
+    size: str = 'auto',
+    quality: str = 'auto',
 ):
     """Generate images based on a prompt using OpenAI's API.
 
     Args:
         prompt: The text prompt to generate images from.
         n: The Number of images (1-10) to generate.
-        size: Image resolution size, can only be these value: 1024x1024, 1536x1024, 1024x1536, auto
+        size: Image resolution size, can only be these value: `auto`, `1024x1024`, `1536x1024`, `1024x1536`
+        quality: The quality of the image that will be generated: `auto`, `high`, `medium`,`low`
+
+    Return:
+        Markdown URL Images, display image in markdown format.
     """
     print("🖼️ Generating image(s)...")
     client = OpenAI()
@@ -47,7 +52,7 @@ async def generate_image(
             prompt=prompt,
             n=n,
             size=size,
-            quality='low'
+            quality=quality
         )
 
     try:
@@ -56,7 +61,7 @@ async def generate_image(
         for i, img in enumerate(resp.data, 1):
             image_data, content_type = load_b64_image_data(img.b64_json)
             url = await upload_image(image_data,content_type)
-            log.info(f"🎉 Image {i} generation successful")
+            log.info(f"🎉 Image {i} generation successful, with url: {url}")
             image_urls.append(f"![image_{i}](http://127.0.0.1:9000/{url})")
         return "\n".join(image_urls)
     except Exception as e:
@@ -89,15 +94,15 @@ async def upload_image(image_data:bytes, content_type:str):
     images_bucket = 'images'
     if images_bucket not in exsist_buckets:
         status = await create_bucket(images_bucket)
-        log.info(status)
+        log.info(f'Bucket create: {status}')
 
     # file upload
     object_key = str(uuid.uuid4())
     status = await upload_object(images_bucket,object_key,file)
-    log.info(status)
+    log.info(f'Image upload: {status}')
 
     # get object url
-    object_url = object_path(images_bucket,object_key)
+    object_url = status['url_path']
     return object_url
 
 

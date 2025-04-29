@@ -1,5 +1,4 @@
 import os
-import shutil
 from typing import List
 import aiofiles
 from fastapi import FastAPI, HTTPException, UploadFile
@@ -37,6 +36,30 @@ async def create_bucket(bucket: str):
     os.makedirs(bp)
     return {"bucket": bucket, "created": True}
 
+# # 3) 删除 bucket（及其所有对象）
+# @app.delete("/buckets/{bucket}")
+# async def delete_bucket(bucket: str):
+#     bp = bucket_path(bucket)
+#     if not os.path.isdir(bp):
+#         raise HTTPException(404, f"Bucket '{bucket}' not found.")
+#     shutil.rmtree(bp)
+#     return {"bucket": bucket, "deleted": True}
+
+# # 4) 列举 bucket 下所有对象（递归扁平化）
+# @app.get("/buckets/{bucket}/objects", response_model=List[str])
+# async def list_objects(bucket: str):
+#     bp = bucket_path(bucket)
+#     if not os.path.isdir(bp):
+#         raise HTTPException(404, "Bucket not found.")
+#     objects = []
+#     for root, _, files in os.walk(bp):
+#         for f in files:
+#             full = os.path.join(root, f)
+#             # 相对于桶根目录的 Key
+#             key = os.path.relpath(full, bp).replace("\\", "/")
+#             objects.append(key)
+#     return objects
+
 # 5) 上传/覆盖一个对象
 @app.put("/buckets/{bucket}/objects/{object_key:path}")
 async def upload_object(bucket: str, object_key: str, file: UploadFile):
@@ -52,7 +75,8 @@ async def upload_object(bucket: str, object_key: str, file: UploadFile):
             if not chunk:
                 break
             await out_f.write(chunk)
-    return {"bucket": bucket, "key": object_key, "size": os.path.getsize(dest_path)}
+    url_path = f'buckets/{bucket}/objects/{object_key}'
+    return {"url_path":url_path ,"bucket": bucket, "key": object_key}
 
 # 6) 下载一个对象
 @app.get("/buckets/{bucket}/objects/{object_key:path}")
@@ -71,6 +95,19 @@ async def download_object(bucket: str, object_key: str):
                 yield chunk
     return StreamingResponse(streamer(), media_type="application/octet-stream")
 
+# # 7) 删除一个对象
+# @app.delete("/buckets/{bucket}/objects/{object_key:path}")
+# async def delete_object(bucket: str, object_key: str):
+#     path = object_path(bucket, object_key)
+#     if not os.path.isfile(path):
+#         raise HTTPException(404, "Object not found.")
+#     os.remove(path)
+#     # 可选：清理空目录
+#     parent = os.path.dirname(path)
+#     while parent != bucket_path(bucket) and not os.listdir(parent):
+#         os.rmdir(parent)
+#         parent = os.path.dirname(parent)
+#     return {"bucket": bucket, "key": object_key, "deleted": True}
 if __name__ == "__main__":
     uvicorn.run(
         "storage_server:app",
