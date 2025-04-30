@@ -41,12 +41,14 @@ async def generate_image(
         quality: The quality of the image that will be generated: `auto`, `high`, `medium`,`low`
 
     Return:
-        Markdown URL Images, display image in markdown format.
+        List of Image URL.
+        The image url link need to displayed in Markdown Image format as follow(NOTE: Do not remove character '!'):
+            ![<image_name>](<image_url_link>)
     """
-    print("🖼️ Generating image(s)...")
+    log.info("🖼️ Generating image(s)...")
     client = OpenAI()
 
-    def _call_gen():
+    def _call_gen():        
         return client.images.generate(
             model='gpt-image-1',
             prompt=prompt,
@@ -63,10 +65,10 @@ async def generate_image(
             url = await upload_image(image_data,content_type)
             log.info(f"🎉 Image {i} generation successful, with url: {url}")
             image_urls.append(f"![image_{i}](http://127.0.0.1:9000/{url})")
-        return "\n".join(image_urls)
+        return image_urls
     except Exception as e:
         log.error("❌ Image generation failed")
-        print(f"Error during image generation: {e}")
+        log.error(f"Error during image generation: {e}")
         return f"Error during image generation: {e}"
     
 def load_b64_image_data(b64_str:str):
@@ -83,10 +85,11 @@ def load_b64_image_data(b64_str:str):
         log.exception(f"Error loading image data: {e}")
     
 async def upload_image(image_data:bytes, content_type:str):
-    image_format = mimetypes.guess_extension(content_type)
+    object_key = str(uuid.uuid4())
+    image_ext = mimetypes.guess_extension(content_type)
     file = UploadFile(
         file=io.BytesIO(image_data),
-        filename=f"generated-image{image_format}",  # will be converted to a unique ID on upload_file
+        filename=f'{object_key}{image_ext}'
     )
 
     # create bucket
@@ -97,8 +100,10 @@ async def upload_image(image_data:bytes, content_type:str):
         log.info(f'Bucket create: {status}')
 
     # file upload
-    object_key = str(uuid.uuid4())
-    status = await upload_object(images_bucket,object_key,file)
+    if file.filename is None:
+        log.error('filename is None')
+        raise AssertionError('filename is None')
+    status = await upload_object(images_bucket,file.filename,file)
     log.info(f'Image upload: {status}')
 
     # get object url
