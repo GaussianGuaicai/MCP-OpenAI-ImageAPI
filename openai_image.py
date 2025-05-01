@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable,List
 from mcp.server.fastmcp import FastMCP
 import mimetypes
 import io
@@ -9,6 +9,7 @@ import base64
 import logging
 from fastapi import UploadFile
 import os
+import requests
 
 log = logging.getLogger(__name__)
 log.setLevel(logging._nameToLevel['INFO'])
@@ -27,38 +28,75 @@ async def _run_blocking(fn: Callable, *args, **kwargs):
 
 @mcp.tool()
 async def generate_image(
+    images: List[str],
     prompt: str,
     n: int = 1,
     size: str = 'auto',
-    quality: str = 'auto',
+    quality: str = 'medium',
+    max_retries: int = 0
 ):
-    """Generate images based on a prompt using OpenAI's API.
+    """Generate images based on a prompt and images using OpenAI's API.
+    Default to medium quality image output, high and auto quality output only for final image.
 
     Args:
+        images: List of image URLs to generate new image from.
         prompt: The text prompt to generate images from.
         n: The Number of images (1-10) to generate.
         size: Image resolution size, can only be these value: `auto`, `1024x1024`, `1536x1024`, `1024x1536`
-        quality: The quality of the image that will be generated: `auto`, `high`, `medium`,`low`
+        quality: The quality of the image that will be generated: `low`,`medium`,`auto`,`high`
+        max_retries: The number of times to retry the request in case of failure.
 
     Return:
         List of Image URL.
         The image url link need to displayed in Markdown Image format as follow(NOTE: Do not remove character '!'):
             ![<image_name>](<image_url_link>)
     """
-    log.info("🖼️ Generating image(s)...")
-    client = OpenAI()
+    client = OpenAI(max_retries=max_retries)
 
-    def _call_gen():        
-        return client.images.generate(
-            model='gpt-image-1',
-            prompt=prompt,
-            n=n,
-            size=size,
-            quality=quality
-        )
+    images_array = []
+    for i,img_url in enumerate(images):
+        try:
+            response = requests.get(img_url, timeout=60)
+            response.raise_for_status()
+
+            if len(response.content) > 25 * 1024 * 1024:
+                log.error(f'Image {img_url} exceeds 25MB limit')
+                raise ValueError("Image exceeds 25MB limit")
+            
+            content_type = response.headers.get('Content-Type', '').lower()
+            if content_type not in ('image/png', 'image/jpeg','image/webp'):
+                log.error(f'Image type {content_type} is not support!')
+                raise ValueError(f'Image type {content_type} is not support!')
+
+            data = io.BytesIO(response.content)
+            images_array.append((f'image{i}',data,content_type))
+        except Exception as e:
+            log.error(f"Error process input images: {e}")
+            raise ValueError(f"Error process input images: {e}")
+
+    def _call_gen(images:List):
+        if len(images) == 0:
+            log.info("🖼️ Generating image(s)...")
+            return client.images.generate(
+                model='gpt-image-1',
+                prompt=prompt,
+                n=n,
+                size=size,
+                quality=quality
+            )
+        else:
+            log.info("🖼️ Editing image(s)...")
+            return client.images.edit(
+                model='gpt-image-1',
+                image=images,
+                prompt=prompt,
+                n=n,
+                size=size,
+                quality=quality
+            )
 
     try:
-        resp = _call_gen()
+        resp = _call_gen(images_array)
         image_urls = []
         for i, img in enumerate(resp.data, 1):
             image_data, content_type = load_b64_image_data(img.b64_json)
@@ -83,6 +121,7 @@ def load_b64_image_data(b64_str:str):
         return img_data, mime_type
     except Exception as e:
         log.exception(f"Error loading image data: {e}")
+
     
 async def upload_image(image_data:bytes, content_type:str):
     object_key = str(uuid.uuid4())
