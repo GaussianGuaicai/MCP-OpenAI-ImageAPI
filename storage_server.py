@@ -4,6 +4,7 @@ import aiofiles
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 import uvicorn
+import filetype
 
 app = FastAPI(title="Mini Object Storage Server")
 
@@ -36,14 +37,6 @@ async def create_bucket(bucket: str):
     os.makedirs(bp)
     return {"bucket": bucket, "created": True}
 
-# # 3) 删除 bucket（及其所有对象）
-# @app.delete("/buckets/{bucket}")
-# async def delete_bucket(bucket: str):
-#     bp = bucket_path(bucket)
-#     if not os.path.isdir(bp):
-#         raise HTTPException(404, f"Bucket '{bucket}' not found.")
-#     shutil.rmtree(bp)
-#     return {"bucket": bucket, "deleted": True}
 
 # # 4) 列举 bucket 下所有对象（递归扁平化）
 # @app.get("/buckets/{bucket}/objects", response_model=List[str])
@@ -85,7 +78,16 @@ async def download_object(bucket: str, object_key: str):
     print(os.path.abspath(path))
     if not os.path.isfile(path):
         raise HTTPException(404, "Object not found.")
-    # StreamingResponse 支持大文件分块读取
+
+    # 读取文件头部部分字节用于类型判断
+    async with aiofiles.open(path, "rb") as f:
+        head = await f.read(261)  # filetype 推荐读取 261 字节
+    kind = filetype.guess(head)
+    if kind:
+        mime_type = kind.mime
+    else:
+        mime_type = "application/octet-stream"
+
     async def streamer():
         async with aiofiles.open(path, "rb") as f:
             while True:
@@ -93,7 +95,7 @@ async def download_object(bucket: str, object_key: str):
                 if not chunk:
                     break
                 yield chunk
-    return StreamingResponse(streamer(), media_type="application/octet-stream")
+    return StreamingResponse(streamer(), media_type=mime_type)
 
 # # 7) 删除一个对象
 # @app.delete("/buckets/{bucket}/objects/{object_key:path}")
