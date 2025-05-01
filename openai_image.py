@@ -97,9 +97,11 @@ async def generate_image(
 
     try:
         resp = _call_gen(images_array)
+        if resp.data is None:
+            raise ValueError("Image Response Datas is None!")
         image_urls = []
         for i, img in enumerate(resp.data, 1):
-            image_data, content_type = load_b64_image_data(img.b64_json)
+            image_data, content_type = load_b64_image_data(img.b64_json) # type: ignore
             url = await upload_image(image_data,content_type)
             log.info(f"🎉 Image {i} generation successful, with url: {url}")
             image_urls.append(f"![image_{i}](http://127.0.0.1:9000/{url})")
