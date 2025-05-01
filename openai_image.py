@@ -26,7 +26,7 @@ async def _run_blocking(fn: Callable, *args, **kwargs):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lambda: fn(*args, **kwargs))
 
-@mcp.tool()
+@mcp.tool("gpt-image-generator","Generate Images using GPT-Image-1")
 async def generate_image(
     images: List[str],
     prompt: str,
@@ -35,7 +35,7 @@ async def generate_image(
     quality: str = 'medium',
     max_retries: int = 0
 ):
-    """Generate images based on a prompt and images using OpenAI's API.
+    """Generate or edit images based on a prompt and input images using OpenAI's API.
     Default to medium quality image output, high and auto quality output only for final image.
 
     Args:
