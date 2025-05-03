@@ -13,29 +13,7 @@ A Model Context Protocol (MCP) server for generating and editing images using Op
 - OpenAI API key
 - Access to an S3-compatible object storage server (e.g., MinIO, AWS S3, or self-hosted)
 
-**Note:** You must provide your own S3-compatible object storage server. This project does not include an object storage backend.
-
-## Installation
-1. Clone this repository:
-   ```bash
-   git clone <this-repo-url>
-   cd MCP-OpenAI-ImageAPI
-   ```
-2. Install dependencies (recommended: use a virtual environment):
-   ```bash
-   pip install -r requirements.txt
-   ```
-   Or, if using PDM:
-   ```bash
-   pdm install
-   ```
-3. Configure your OpenAI API key and object storage credentials as environment variables or in the appropriate config files.
-
-## Usage
-Run the MCP server:
-```bash
-python openai_image.py
-```
+**Note:** You must provide your own S3-compatible object storage server. This project include an very simple object storage backend.
 
 The server exposes a tool `gpt-image-generator` for generating or editing images. See the code for API details.
 

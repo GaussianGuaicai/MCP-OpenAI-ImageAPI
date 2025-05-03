@@ -9,6 +9,7 @@ import base64
 import logging
 from fastapi import UploadFile
 import os
+from pydantic import Field
 import requests
 
 log = logging.getLogger(__name__)
@@ -20,35 +21,33 @@ os.environ['PATH'] += f':{os.curdir}'
 from storage_server import *
 
 # Initialize FastMCP server
-mcp = FastMCP("openai-image")
+mcp = FastMCP("gpt_image_generator")
 
 async def _run_blocking(fn: Callable, *args, **kwargs):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lambda: fn(*args, **kwargs))
 
-@mcp.tool("gpt-image-generator","Generate Images using GPT-Image-1")
+@mcp.tool(description="Generate or edit images based on a prompt and input images if provide, and return list of image URL. The image url link need to displayed in Markdown Image format: ![image_name](image_url_link)")
 async def generate_image(
-    images: List[str],
-    prompt: str,
-    n: int = 1,
-    size: str = 'auto',
-    quality: str = 'medium',
+    prompt: str = Field(description="The text prompt to generate images from."),
+    images: List[str] = Field(description="List of image URLs to generate new image from.",default=[]),
+    n: int = Field(description="The Number of images (1-10) to generate",default=1),
+    size: str = Field(description="Image resolution size, can only be these value: `auto`, `1024x1024`, `1536x1024`, `1024x1536`",default='auto'),
+    quality: str = Field(description="The quality of the image that will be generated: `low`,`medium`,`auto`,`high`.",default='medium'),
     max_retries: int = 0
 ):
-    """Generate or edit images based on a prompt and input images using OpenAI's API.
-    Default to medium quality image output, high and auto quality output only for final image.
+    """Generate or edit images based on a prompt and input images if provide, Default to medium quality image output, high and auto quality output only for final image.
 
     Args:
-        images: List of image URLs to generate new image from.
         prompt: The text prompt to generate images from.
+        images: List of image URLs to generate new image from.
         n: The Number of images (1-10) to generate.
         size: Image resolution size, can only be these value: `auto`, `1024x1024`, `1536x1024`, `1024x1536`
         quality: The quality of the image that will be generated: `low`,`medium`,`auto`,`high`
         max_retries: The number of times to retry the request in case of failure.
 
     Return:
-        List of Image URL.
-        The image url link need to displayed in Markdown Image format as follow(NOTE: Do not remove character '!'):
+        List of Image URL, the image url link need to displayed in Markdown Image format as follow:
             ![<image_name>](<image_url_link>)
     """
     client = OpenAI(max_retries=max_retries)
