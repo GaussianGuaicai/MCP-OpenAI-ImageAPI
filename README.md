@@ -1,5 +1,7 @@
 # MCP-OpenAI-ImageAPI
 
+[![smithery badge](https://smithery.ai/badge/@GaussianGuaicai/MCP-OpenAI-ImageAPI)](https://smithery.ai/server/@GaussianGuaicai/MCP-OpenAI-ImageAPI)
+
 A Model Context Protocol (MCP) server for generating and editing images using OpenAI's GPT-Image-1 API. This project provides an API interface to generate or edit images based on text prompts and input images, with results stored and served via an S3-compatible object storage server.
 
 ## Features
