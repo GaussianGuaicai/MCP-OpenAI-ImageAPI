@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/gaussianguaicai-mcp-openai-imageapi-badge.png)](https://mseep.ai/app/gaussianguaicai-mcp-openai-imageapi)
+
 # MCP-OpenAI-ImageAPI
 
 [![smithery badge](https://smithery.ai/badge/@GaussianGuaicai/MCP-OpenAI-ImageAPI)](https://smithery.ai/server/@GaussianGuaicai/MCP-OpenAI-ImageAPI)
